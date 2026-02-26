@@ -1,5 +1,9 @@
 # Snake CLI
 
+![Welcome screen](assets/welcome.png)
+
+![In-game screenshot](assets/game.png)
+
 A terminal-based Snake game written in Go. Pick board size and difficulty, then play.
 
 ## Features
