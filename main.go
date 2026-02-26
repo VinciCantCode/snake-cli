@@ -3,13 +3,12 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"golang.org/x/term"
 	"math/rand"
 	"os"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
-	"unsafe"
 )
 
 type Direction int
@@ -45,7 +44,7 @@ var highScore int
 var difficulty string
 var speed time.Duration
 var foodCount int
-var oldTerm syscall.Termios
+var oldState *term.State
 
 func init() {
 	rand.Seed(time.Now().Unix())
@@ -157,7 +156,7 @@ func draw() {
 	for i := 0; i < boardWidth; i++ {
 		fmt.Print("─")
 	}
-	fmt.Println("┐")
+	fmt.Print("┐\r\n")
 	// Rows
 	for y := 0; y < boardHeight; y++ {
 		fmt.Print("│")
@@ -171,35 +170,30 @@ func draw() {
 				fmt.Print(" ")
 			}
 		}
-		fmt.Println("│")
+		fmt.Print("│\r\n")
 	}
 	// Bottom border
 	fmt.Print("└")
 	for i := 0; i < boardWidth; i++ {
 		fmt.Print("─")
 	}
-	fmt.Println("┘")
+	fmt.Print("┘\r\n")
 	fmt.Printf("Difficulty: %s | Score: %d | High Score: %d\n", difficulty, score, highScore)
 }
 
 func setRawMode() {
-	_, _, err := syscall.Syscall(syscall.SYS_IOCTL, uintptr(os.Stdin.Fd()), uintptr(syscall.TCGETS), uintptr(unsafe.Pointer(&oldTerm)))
-	if err != 0 {
+	state, err := term.MakeRaw(int(os.Stdin.Fd()))
+	if err != nil {
 		panic(err)
 	}
-	term := oldTerm
-	term.Lflag &^= syscall.ICANON | syscall.ECHO
-	term.Cc[syscall.VMIN] = 1
-	term.Cc[syscall.VTIME] = 0
-	_, _, err = syscall.Syscall(syscall.SYS_IOCTL, uintptr(os.Stdin.Fd()), uintptr(syscall.TCSETS), uintptr(unsafe.Pointer(&term)))
-	if err != 0 {
-		panic(err)
-	}
+	oldState = state
 }
 
 func restoreMode() {
-	_, _, err := syscall.Syscall(syscall.SYS_IOCTL, uintptr(os.Stdin.Fd()), uintptr(syscall.TCSETS), uintptr(unsafe.Pointer(&oldTerm)))
-	if err != 0 {
+	if oldState == nil {
+		return
+	}
+	if err := term.Restore(int(os.Stdin.Fd()), oldState); err != nil {
 		panic(err)
 	}
 }
@@ -210,7 +204,7 @@ func drawStartScreen() {
 	for i := 0; i < width-2; i++ {
 		fmt.Print("─")
 	}
-	fmt.Println("┐")
+	fmt.Print("┐\r\n")
 
 	// Title
 	title := "SNAKE CLI"
@@ -223,14 +217,14 @@ func drawStartScreen() {
 	for i := 0; i < width-2-padding-len(title); i++ {
 		fmt.Print(" ")
 	}
-	fmt.Println("│")
+	fmt.Print("│\r\n")
 
 	// Empty line
 	fmt.Print("│")
 	for i := 0; i < width-2; i++ {
 		fmt.Print(" ")
 	}
-	fmt.Println("│")
+	fmt.Print("│\r\n")
 
 	// Instructions
 	lines := []string{
@@ -250,7 +244,7 @@ func drawStartScreen() {
 		for i := 0; i < width-4-len(line); i++ {
 			fmt.Print(" ")
 		}
-		fmt.Println(" │")
+		fmt.Print(" │\r\n")
 	}
 
 	// Bottom border
@@ -258,19 +252,16 @@ func drawStartScreen() {
 	for i := 0; i < width-2; i++ {
 		fmt.Print("─")
 	}
-	fmt.Println("┘")
+	fmt.Print("┘\r\n")
 }
 
 func main() {
 	highScore = loadHighScore()
 
-	setRawMode()
-	defer restoreMode()
-
 	var r = bufio.NewReader(os.Stdin)
 
 	drawStartScreen()
-	r.ReadByte() // wait for any key
+	_, _ = r.ReadBytes('\n') // wait for Enter
 
 	fmt.Println("Welcome to Snake CLI!")
 	fmt.Printf("Current High Score: %d\n", highScore)
@@ -300,8 +291,6 @@ func main() {
 		}
 	}
 
-	reset()
-
 	fmt.Println("Choose difficulty:")
 	fmt.Println("1. Easy")
 	fmt.Println("2. Medium")
@@ -330,6 +319,14 @@ func main() {
 		}
 	}
 
+	// initialize snake and foods based on chosen difficulty
+	reset()
+
+	// Now switch to raw mode for realtime controls
+	setRawMode()
+	defer restoreMode()
+	r = bufio.NewReader(os.Stdin)
+
 	actionChan := make(chan Action)
 
 	ticker := time.NewTicker(speed)
@@ -345,7 +342,12 @@ func main() {
 			if err != nil {
 				return
 			}
-			if b == 'p' || b == 'P' {
+			// Ctrl-C in raw mode
+			if b == 3 {
+				actionChan <- Action{Type: "quit"}
+			} else if b == 'q' || b == 'Q' {
+				actionChan <- Action{Type: "quit"}
+			} else if b == 'p' || b == 'P' {
 				actionChan <- Action{Type: "pause"}
 			} else if b == 'w' || b == 'W' {
 				if dir != Down {
@@ -401,7 +403,9 @@ func main() {
 	for {
 		for !gameOver {
 			var action = <-actionChan
-			if action.Type == "pause" {
+			if action.Type == "quit" {
+				return
+			} else if action.Type == "pause" {
 				paused = !paused
 				if paused {
 					fmt.Println("\033[33mGame paused. Press P to resume.\033[0m")
