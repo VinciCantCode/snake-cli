@@ -6,6 +6,15 @@
 
 A terminal-based Snake game written in Go. Pick board size and difficulty, then play.
 
+## Download (binaries)
+
+Pre-built binaries for players (no Go / IDE required) are published on GitHub Releases:
+
+- [Download for macOS (Apple Silicon)](https://github.com/VinciCantCode/snake-cli/releases/latest/download/snake-cli-macos-arm64)
+- [Download for macOS (Intel)](https://github.com/VinciCantCode/snake-cli/releases/latest/download/snake-cli-macos-amd64)
+- [Download for Linux (x86_64)](https://github.com/VinciCantCode/snake-cli/releases/latest/download/snake-cli-linux-amd64)
+- [Download for Windows (x86_64)](https://github.com/VinciCantCode/snake-cli/releases/latest/download/snake-cli-windows-amd64.exe)
+
 ## Features
 
 - **Board sizes**: 10×10, 15×15, or 20×20
@@ -22,7 +31,7 @@ A terminal-based Snake game written in Go. Pick board size and difficulty, then 
 
 ```bash
 # Clone the repo
-git clone https://github.com/your-username/snake-cli.git
+git clone https://github.com/VinciCantCode/snake-cli.git
 cd snake-cli
 
 # Run directly

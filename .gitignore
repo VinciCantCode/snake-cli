@@ -1,0 +1,19 @@
+# Go build artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Project binaries
+snake-cli*
+
+# Editor / OS files
+.DS_Store
+*.swp
+*.swo
+.vscode/
+.idea/
+
